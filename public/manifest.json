@@ -1,0 +1,10 @@
+{
+  "name": "Hookah Queue",
+  "short_name": "HQ",
+  "description": "Очередь на кальян без хаоса",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait"
+}
