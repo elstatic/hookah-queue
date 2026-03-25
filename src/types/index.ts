@@ -15,6 +15,7 @@ export interface Participant {
   position: number;
   status: "waiting" | "active" | "done";
   joined_at: number;
+  activated_at: number | null;
 }
 
 // Socket.io events: Client → Server

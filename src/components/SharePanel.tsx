@@ -10,7 +10,6 @@ interface SharePanelProps {
 export default function SharePanel({ roomId }: SharePanelProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const [showQr, setShowQr] = useState(false);
 
   const roomUrl =
     typeof window !== "undefined"
@@ -33,7 +32,6 @@ export default function SharePanel({ roomId }: SharePanelProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
       const input = document.createElement("input");
       input.value = roomUrl;
       document.body.appendChild(input);
@@ -47,26 +45,17 @@ export default function SharePanel({ roomId }: SharePanelProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <button
-          onClick={copyLink}
-          className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-medium transition-colors"
-        >
-          {copied ? "Скопировано!" : "Скопировать ссылку"}
-        </button>
-        <button
-          onClick={() => setShowQr(!showQr)}
-          className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-medium transition-colors"
-        >
-          QR
-        </button>
-      </div>
-
-      {showQr && qrDataUrl && (
+      {qrDataUrl && (
         <div className="flex justify-center p-4 bg-white rounded-xl">
           <img src={qrDataUrl} alt="QR код комнаты" width={200} height={200} />
         </div>
       )}
+      <button
+        onClick={copyLink}
+        className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-medium transition-colors"
+      >
+        {copied ? "Скопировано!" : "Скопировать ссылку"}
+      </button>
     </div>
   );
 }

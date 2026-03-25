@@ -156,8 +156,8 @@ export default function RoomPage({
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-lg mx-auto p-4 space-y-4">
-          {/* Share panel (owner only) */}
-          {isOwner && <SharePanel roomId={roomId} />}
+          {/* Share panel */}
+          <SharePanel roomId={roomId} />
 
           {/* Position banner */}
           {stillInQueue && (

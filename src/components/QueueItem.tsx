@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Participant } from "@/types";
@@ -10,6 +11,31 @@ interface QueueItemProps {
   isOwner: boolean;
   isMe: boolean;
   onRemove?: (participantId: string) => void;
+}
+
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function Timer({ activatedAt }: { activatedAt: number }) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - activatedAt);
+
+  useEffect(() => {
+    setElapsed(Date.now() - activatedAt);
+    const interval = setInterval(() => {
+      setElapsed(Date.now() - activatedAt);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activatedAt]);
+
+  return (
+    <span className="text-xs tabular-nums px-2 py-1 rounded-full bg-amber-500/30 text-amber-300 shrink-0">
+      {formatElapsed(elapsed)}
+    </span>
+  );
 }
 
 export default function QueueItem({
@@ -87,10 +113,8 @@ export default function QueueItem({
         )}
       </span>
 
-      {isActive && (
-        <span className="text-xs px-2 py-1 rounded-full bg-amber-500/30 text-amber-300 shrink-0">
-          Курит
-        </span>
+      {isActive && participant.activated_at && (
+        <Timer activatedAt={participant.activated_at} />
       )}
 
       {isOwner && onRemove && (

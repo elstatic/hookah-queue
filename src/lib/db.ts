@@ -36,6 +36,7 @@ function initSchema() {
       position INTEGER NOT NULL,
       status TEXT DEFAULT 'waiting',
       joined_at INTEGER NOT NULL,
+      activated_at INTEGER,
       FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
     );
 
@@ -45,6 +46,12 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_rooms_active
       ON rooms(is_active, created_at);
   `);
+
+  // Migration: add activated_at column if missing
+  const cols = db.prepare(`PRAGMA table_info(participants)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "activated_at")) {
+    db.exec(`ALTER TABLE participants ADD COLUMN activated_at INTEGER`);
+  }
 }
 
 // --- Rooms ---
@@ -162,10 +169,11 @@ export function advanceQueue(roomId: string) {
 
   // Move current active to the end of the queue as waiting
   d.prepare(
-    `UPDATE participants SET status = 'waiting', position = ? WHERE room_id = ? AND status = 'active'`
+    `UPDATE participants SET status = 'waiting', position = ?, activated_at = NULL WHERE room_id = ? AND status = 'active'`
   ).run(maxPos + 1, roomId);
 
   // Find the first waiting participant (by position)
+  const now = Date.now();
   const next = d
     .prepare(
       `SELECT * FROM participants WHERE room_id = ? AND status = 'waiting' ORDER BY position LIMIT 1`
@@ -173,8 +181,8 @@ export function advanceQueue(roomId: string) {
     .get(roomId) as Participant | undefined;
 
   if (next) {
-    d.prepare(`UPDATE participants SET status = 'active' WHERE id = ?`).run(
-      next.id
+    d.prepare(`UPDATE participants SET status = 'active', activated_at = ? WHERE id = ?`).run(
+      now, next.id
     );
   }
 
