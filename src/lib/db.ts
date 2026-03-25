@@ -3,7 +3,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import type { Room, Participant } from "@/types";
 
-const DB_PATH = path.join(process.cwd(), "hookah_queue.db");
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "hookah_queue.db");
 
 let db: Database.Database;
 
