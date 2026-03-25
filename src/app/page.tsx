@@ -1,4 +1,5 @@
 import CreateRoomForm from "@/components/CreateRoomForm";
+import MyRooms from "@/components/MyRooms";
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
           <p className="text-white/50 mt-2">Очередь на кальян без хаоса</p>
         </div>
         <CreateRoomForm />
+        <MyRooms />
       </div>
     </main>
   );

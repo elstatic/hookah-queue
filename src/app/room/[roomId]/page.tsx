@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useSocket } from "@/hooks/useSocket";
 import { useIdentity } from "@/hooks/useIdentity";
 import JoinForm from "@/components/JoinForm";
@@ -146,10 +147,10 @@ export default function RoomPage({
       {/* Header */}
       <header className="px-4 py-3 border-b border-white/10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-white truncate">
+          <div className="min-w-0">
+            <Link href="/" className="text-lg font-semibold text-white truncate block hover:text-amber-400 transition-colors">
               {roomName || "..."}
-            </h1>
+            </Link>
             <p className="text-xs text-white/40">
               {connected ? (
                 `${participants.length} в очереди`
