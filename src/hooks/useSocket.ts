@@ -16,6 +16,7 @@ export function useSocket(roomId: string) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roomClosed, setRoomClosed] = useState(false);
 
   useEffect(() => {
     const socket: TypedSocket = io({
@@ -40,6 +41,10 @@ export function useSocket(roomId: string) {
     socket.on("room:error", ({ message }) => {
       setError(message);
       setTimeout(() => setError(null), 3000);
+    });
+
+    socket.on("room:closed", () => {
+      setRoomClosed(true);
     });
 
     return () => {
@@ -90,6 +95,13 @@ export function useSocket(roomId: string) {
     [roomId]
   );
 
+  const closeRoom = useCallback(
+    (ownerToken: string) => {
+      socketRef.current?.emit("room:close", { roomId, ownerToken });
+    },
+    [roomId]
+  );
+
   const onJoined = useCallback(
     (
       callback: (data: {
@@ -109,11 +121,13 @@ export function useSocket(roomId: string) {
     participants,
     connected,
     error,
+    roomClosed,
     joinQueue,
     leaveQueue,
     advance,
     remove,
     reorder,
+    closeRoom,
     onJoined,
   };
 }

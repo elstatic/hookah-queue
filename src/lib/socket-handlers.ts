@@ -9,6 +9,8 @@ import {
   leaveQueue,
   advanceQueue,
   reorderQueue,
+  isQueueEmpty,
+  deleteRoom,
 } from "./db";
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -17,6 +19,13 @@ type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 function broadcastQueue(io: IOServer, roomId: string) {
   const participants = getQueue(roomId);
   io.to(roomId).emit("queue:updated", { participants });
+}
+
+function checkAndCleanEmpty(io: IOServer, roomId: string) {
+  if (isQueueEmpty(roomId)) {
+    deleteRoom(roomId);
+    io.to(roomId).emit("room:closed");
+  }
 }
 
 export function setupSocketHandlers(io: IOServer) {
@@ -28,7 +37,6 @@ export function setupSocketHandlers(io: IOServer) {
         return;
       }
       socket.join(roomId);
-      // Send current state
       const participants = getQueue(roomId);
       socket.emit("queue:updated", { participants });
     });
@@ -65,6 +73,7 @@ export function setupSocketHandlers(io: IOServer) {
     socket.on("queue:leave", ({ roomId, participantToken }) => {
       leaveQueue(roomId, participantToken);
       broadcastQueue(io, roomId);
+      checkAndCleanEmpty(io, roomId);
     });
 
     socket.on("queue:advance", ({ roomId, ownerToken }) => {
@@ -87,6 +96,7 @@ export function setupSocketHandlers(io: IOServer) {
       }
       removeParticipant(roomId, participantId);
       broadcastQueue(io, roomId);
+      checkAndCleanEmpty(io, roomId);
     });
 
     socket.on("queue:reorder", ({ roomId, ownerToken, orderedIds }) => {
@@ -98,6 +108,17 @@ export function setupSocketHandlers(io: IOServer) {
       }
       reorderQueue(roomId, orderedIds);
       broadcastQueue(io, roomId);
+    });
+
+    socket.on("room:close", ({ roomId, ownerToken }) => {
+      if (!verifyOwner(roomId, ownerToken)) {
+        socket.emit("room:error", {
+          message: "Нет прав для закрытия комнаты",
+        });
+        return;
+      }
+      deleteRoom(roomId);
+      io.to(roomId).emit("room:closed");
     });
   });
 }

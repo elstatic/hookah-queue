@@ -229,6 +229,21 @@ export function verifyParticipant(
     .get(roomId, userToken) as Participant | undefined;
 }
 
+export function isQueueEmpty(roomId: string): boolean {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) as cnt FROM participants WHERE room_id = ? AND status != 'done'`
+    )
+    .get(roomId) as { cnt: number };
+  return row.cnt === 0;
+}
+
+export function deleteRoom(roomId: string) {
+  const d = getDb();
+  d.prepare(`DELETE FROM participants WHERE room_id = ?`).run(roomId);
+  d.prepare(`DELETE FROM rooms WHERE id = ?`).run(roomId);
+}
+
 // --- Cleanup ---
 
 export function cleanupExpiredRooms() {

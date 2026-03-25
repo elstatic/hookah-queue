@@ -15,16 +15,18 @@ export default function RoomPage({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = use(params);
-  const { getIdentity, setParticipant } = useIdentity(roomId);
+  const { getIdentity, setParticipant, clearIdentity } = useIdentity(roomId);
   const {
     participants,
     connected,
     error,
+    roomClosed,
     joinQueue,
     leaveQueue,
     advance,
     remove,
     reorder,
+    closeRoom,
     onJoined,
   } = useSocket(roomId);
 
@@ -54,16 +56,22 @@ export default function RoomPage({
     });
   }, [onJoined, getIdentity, setParticipant]);
 
-  // Refresh identity when participants change (to detect if we're still in queue)
+  // Refresh identity when participants change
   useEffect(() => {
     setIdentityState(getIdentity());
   }, [participants, getIdentity]);
+
+  // Clean up identity when room is closed
+  useEffect(() => {
+    if (roomClosed) {
+      clearIdentity();
+    }
+  }, [roomClosed, clearIdentity]);
 
   const isOwner = !!identity.ownerToken;
   const isInQueue = !!identity.participantToken;
   const myParticipantId = identity.participantId;
 
-  // Check if my participant is still in the queue
   const stillInQueue =
     isInQueue && participants.some((p) => p.id === myParticipantId);
 
@@ -104,12 +112,24 @@ export default function RoomPage({
     [identity.ownerToken, reorder]
   );
 
-  if (roomNotFound) {
+  const handleCloseRoom = useCallback(() => {
+    if (identity.ownerToken && confirm("Завершить сессию? Комната будет удалена.")) {
+      closeRoom(identity.ownerToken);
+    }
+  }, [identity.ownerToken, closeRoom]);
+
+  if (roomNotFound || roomClosed) {
     return (
       <main className="flex flex-col items-center justify-center min-h-dvh p-6">
         <div className="text-center space-y-4">
-          <p className="text-xl text-white/60">Комната не найдена</p>
-          <p className="text-white/40">Возможно, она уже истекла</p>
+          <p className="text-xl text-white/60">
+            {roomClosed ? "Сессия завершена" : "Комната не найдена"}
+          </p>
+          <p className="text-white/40">
+            {roomClosed
+              ? "Владелец закрыл комнату"
+              : "Возможно, она уже истекла"}
+          </p>
           <a
             href="/"
             className="inline-block py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold transition-colors"
@@ -184,7 +204,7 @@ export default function RoomPage({
             />
           )}
 
-          {/* Join form (if not in queue and not owner, or owner who wants to join too) */}
+          {/* Join form */}
           {!stillInQueue && (
             <div className="pt-2">
               <JoinForm onJoin={handleJoin} />
@@ -198,6 +218,16 @@ export default function RoomPage({
               className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 hover:text-white/70 text-sm transition-colors"
             >
               Покинуть очередь
+            </button>
+          )}
+
+          {/* Close room (owner) */}
+          {isOwner && (
+            <button
+              onClick={handleCloseRoom}
+              className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400/70 hover:text-red-400 text-sm transition-colors"
+            >
+              Завершить сессию
             </button>
           )}
         </div>

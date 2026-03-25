@@ -41,6 +41,7 @@ export interface ClientToServerEvents {
     ownerToken: string;
     orderedIds: string[];
   }) => void;
+  "room:close": (data: { roomId: string; ownerToken: string }) => void;
 }
 
 // Socket.io events: Server → Client
@@ -48,6 +49,7 @@ export interface ServerToClientEvents {
   "queue:updated": (data: QueueState) => void;
   "room:error": (data: { message: string }) => void;
   "queue:joined": (data: { participantToken: string; participantId: string }) => void;
+  "room:closed": () => void;
 }
 
 export interface QueueState {
