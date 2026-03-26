@@ -1,14 +1,16 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSocket } from "@/hooks/useSocket";
 import { useIdentity } from "@/hooks/useIdentity";
+import { useNotification } from "@/hooks/useNotification";
 import JoinForm from "@/components/JoinForm";
 import QueueList from "@/components/QueueList";
 import SharePanel from "@/components/SharePanel";
 import OwnerControls from "@/components/OwnerControls";
 import PositionBanner from "@/components/PositionBanner";
+import { useSwipeRooms } from "@/hooks/useSwipeRooms";
 
 export default function RoomPage({
   params,
@@ -17,6 +19,9 @@ export default function RoomPage({
 }) {
   const { roomId } = use(params);
   const { getIdentity, setParticipant, clearIdentity } = useIdentity(roomId);
+  const { requestPermission, subscribeToPush, notifyTurn } = useNotification();
+  const prevWasActive = useRef(false);
+  const { currentIndex, totalRooms } = useSwipeRooms(roomId);
   const {
     participants,
     connected,
@@ -53,9 +58,19 @@ export default function RoomPage({
       if (!current.participantToken) {
         setParticipant(participantToken, participantId, "");
         setIdentityState(getIdentity());
+        subscribeToPush(roomId, participantToken);
       }
     });
-  }, [onJoined, getIdentity, setParticipant]);
+  }, [onJoined, getIdentity, setParticipant, subscribeToPush, roomId]);
+
+  // Re-subscribe to push on mount for returning users
+  useEffect(() => {
+    const id = getIdentity();
+    if (id.participantToken) {
+      subscribeToPush(roomId, id.participantToken);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   // Refresh identity when participants change
   useEffect(() => {
@@ -76,11 +91,23 @@ export default function RoomPage({
   const stillInQueue =
     isInQueue && participants.some((p) => p.id === myParticipantId);
 
+  // Notify when user becomes active
+  const myParticipant = participants.find((p) => p.id === myParticipantId);
+  const isActive = myParticipant?.status === "active";
+
+  useEffect(() => {
+    if (isActive && !prevWasActive.current) {
+      notifyTurn(roomName);
+    }
+    prevWasActive.current = isActive;
+  }, [isActive, notifyTurn, roomName]);
+
   const handleJoin = useCallback(
     (name: string) => {
+      requestPermission();
       joinQueue(name);
     },
-    [joinQueue]
+    [joinQueue, requestPermission]
   );
 
   const handleLeave = useCallback(() => {
@@ -166,6 +193,20 @@ export default function RoomPage({
           )}
         </div>
       </header>
+
+      {/* Room dots indicator */}
+      {totalRooms > 1 && (
+        <div className="flex justify-center gap-1.5 py-1.5 border-b border-white/5">
+          {Array.from({ length: totalRooms }, (_, i) => (
+            <span
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                i === currentIndex ? "bg-amber-400" : "bg-white/20"
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Error toast */}
       {error && (

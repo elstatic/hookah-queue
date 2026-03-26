@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { nanoid } from "nanoid";
-import type { Room, Participant } from "@/types";
+import type { Room, Participant, PushSubscriptionRow } from "@/types";
 
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "hookah_queue.db");
 
@@ -45,6 +45,20 @@ function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_rooms_active
       ON rooms(is_active, created_at);
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_token TEXT NOT NULL,
+      room_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(user_token, room_id, endpoint)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_push_sub_room
+      ON push_subscriptions(room_id);
   `);
 
   // Migration: add activated_at column if missing
@@ -240,8 +254,36 @@ export function isQueueEmpty(roomId: string): boolean {
 
 export function deleteRoom(roomId: string) {
   const d = getDb();
+  d.prepare(`DELETE FROM push_subscriptions WHERE room_id = ?`).run(roomId);
   d.prepare(`DELETE FROM participants WHERE room_id = ?`).run(roomId);
   d.prepare(`DELETE FROM rooms WHERE id = ?`).run(roomId);
+}
+
+// --- Push Subscriptions ---
+
+export function savePushSubscription(
+  userToken: string,
+  roomId: string,
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } }
+) {
+  getDb()
+    .prepare(
+      `INSERT OR REPLACE INTO push_subscriptions (user_token, room_id, endpoint, p256dh, auth, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(userToken, roomId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, Date.now());
+}
+
+export function getPushSubscriptionsForRoom(roomId: string): PushSubscriptionRow[] {
+  return getDb()
+    .prepare(`SELECT * FROM push_subscriptions WHERE room_id = ?`)
+    .all(roomId) as PushSubscriptionRow[];
+}
+
+export function removePushSubscription(endpoint: string) {
+  getDb()
+    .prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`)
+    .run(endpoint);
 }
 
 // --- Cleanup ---

@@ -62,3 +62,13 @@ export interface RoomIdentity {
   participantId?: string;
   name?: string;
 }
+
+export interface PushSubscriptionRow {
+  id: number;
+  user_token: string;
+  room_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: number;
+}

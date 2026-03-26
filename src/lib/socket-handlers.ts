@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import type { ClientToServerEvents, ServerToClientEvents } from "@/types";
+import type { ClientToServerEvents, ServerToClientEvents, Participant } from "@/types";
 import {
   getRoom,
   getQueue,
@@ -12,13 +12,15 @@ import {
   isQueueEmpty,
   deleteRoom,
 } from "./db";
+import { sendQueuePushNotifications } from "./push";
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type IOSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
-function broadcastQueue(io: IOServer, roomId: string) {
+function broadcastQueue(io: IOServer, roomId: string, prevQueue?: Participant[]) {
   const participants = getQueue(roomId);
   io.to(roomId).emit("queue:updated", { participants });
+  sendQueuePushNotifications(roomId, participants, prevQueue);
 }
 
 function checkAndCleanEmpty(io: IOServer, roomId: string) {
@@ -54,6 +56,7 @@ export function setupSocketHandlers(io: IOServer) {
         return;
       }
 
+      const prevQueue = getQueue(roomId);
       const participant = addParticipant(roomId, trimmedName);
 
       // If this is the first participant, make them active
@@ -67,12 +70,13 @@ export function setupSocketHandlers(io: IOServer) {
         participantId: participant.id,
       });
 
-      broadcastQueue(io, roomId);
+      broadcastQueue(io, roomId, prevQueue);
     });
 
     socket.on("queue:leave", ({ roomId, participantToken }) => {
+      const prevQueue = getQueue(roomId);
       leaveQueue(roomId, participantToken);
-      broadcastQueue(io, roomId);
+      broadcastQueue(io, roomId, prevQueue);
       checkAndCleanEmpty(io, roomId);
     });
 
@@ -83,8 +87,9 @@ export function setupSocketHandlers(io: IOServer) {
         });
         return;
       }
+      const prevQueue = getQueue(roomId);
       advanceQueue(roomId);
-      broadcastQueue(io, roomId);
+      broadcastQueue(io, roomId, prevQueue);
     });
 
     socket.on("queue:remove", ({ roomId, ownerToken, participantId }) => {
@@ -94,8 +99,9 @@ export function setupSocketHandlers(io: IOServer) {
         });
         return;
       }
+      const prevQueue = getQueue(roomId);
       removeParticipant(roomId, participantId);
-      broadcastQueue(io, roomId);
+      broadcastQueue(io, roomId, prevQueue);
       checkAndCleanEmpty(io, roomId);
     });
 
@@ -106,8 +112,9 @@ export function setupSocketHandlers(io: IOServer) {
         });
         return;
       }
+      const prevQueue = getQueue(roomId);
       reorderQueue(roomId, orderedIds);
-      broadcastQueue(io, roomId);
+      broadcastQueue(io, roomId, prevQueue);
     });
 
     socket.on("room:close", ({ roomId, ownerToken }) => {
